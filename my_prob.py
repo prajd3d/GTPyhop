@@ -90,11 +90,15 @@ def move_robot_actual(state, robot, loc):
             return [('move_robot', robot, state.robot_loc[robot], loc)]
 gtpyhop.declare_task_methods('move_robot_t', move_robot_do_nothing, move_robot_actual)
 
-def assemble_parts(state, part1, part2):
+def assemble_parts(state, part1, part2, robot1, robot2):
     parts = [part1, part2]
-    robots = ['r11', 'r13']
-    if (all(map(lambda x: is_a(x, 'part'), parts))
-        and (all(map(lambda x: is_a(x, 'robot'), robots)))):
+    robots = [robot1, robot2]
+    if (
+        all(map(lambda x: is_a(x, 'part'), parts))
+        and (all(map(lambda x: is_a(x, 'robot'), robots)))
+        and (robot1 != robot2)
+        and (part1 != part2)
+        ):
         return [
             ('move_robot_t', robots[0], state.part_loc[parts[0]]),
             ('move_robot_t', robots[1], state.part_loc[parts[1]]),
@@ -105,7 +109,29 @@ def assemble_parts(state, part1, part2):
             ('join', parts[0], robots[0], parts[1], robots[1])
             ]
 
-gtpyhop.declare_task_methods('assemble', assemble_parts)
+def ground(f, **kwargs):
+    num_params = len(kwargs.keys())
+    types_list = []
+    for (param_name, param_type) in kwargs.items():
+        types_list.append(rigid.types[param_type])
+
+    funcs = []
+
+    import itertools
+    import copy
+    for combo in itertools.product(*types_list):
+        print("Combo Iters: " + str(combo))
+        def wrapped(*argss):
+            total_args = argss + combo
+            print("Combos Wrapped: " + str(combo))
+            return f(*total_args)
+        funcs.append(wrapped)
+    return funcs
+
+gtpyhop.declare_task_methods(
+    'assemble',
+    *ground(assemble_parts, r1='handler_robot', r2='handler_robot')
+    )
 
 gtpyhop.current_domain = domain
 
